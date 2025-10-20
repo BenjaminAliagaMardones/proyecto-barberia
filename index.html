@@ -310,7 +310,7 @@
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <form action="https://7313c5da06f3.ngrok-free.app/webhook-test/ea6ec4ab-51e2-47dd-a668-c9457d896989" method="POST" class="lg:col-span-2 bg-zinc-900 p-8 border-2 border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]" id="reservaForm">
+                <form action="#" method="POST" class="lg:col-span-2 bg-zinc-900 p-8 border-2 border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]" id="reservaForm">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label for="nombre" class="block text-gold-primary mb-2 font-medium">Nombre Completo</label>
@@ -601,7 +601,7 @@
         });
         
         reservaForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            e.preventDefault();  // ✅ Esto previene el action del form
             
             // Validación adicional antes de enviar
             const fechaSeleccionada = new Date(fechaInput.value);
@@ -627,20 +627,23 @@
             btnSubmit.disabled = true;
             btnSubmit.textContent = 'Enviando...';
             
-            // Aquí puedes agregar la lógica para enviar a n8n
-            // const formData = new FormData(reservaForm);
-            // fetch('https://tuwebhook.n8n.cloud/webhook/barberia', {
-            //     method: 'POST',
-            //     body: formData
-            // });
-            
-            // Simular envío (quitar setTimeout cuando uses fetch real)
-            setTimeout(() => {
-                // Mostrar mensaje de éxito
+            // Aquí deberías tener el fetch a n8n
+            const formData = new FormData(reservaForm);
+            fetch('https://7313c5da06f3.ngrok-free.app/webhook-test/webhook-barberia', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Enviado a n8n:', data);
                 mensajeExito.classList.remove('hidden');
                 reservaForm.reset();
                 configurarFechas(); // Re-aplicar restricciones después del reset
-                
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+            })
+            .finally(() => {
                 // Rehabilitar botón
                 btnSubmit.disabled = false;
                 btnSubmit.textContent = 'Confirmar Reserva';
@@ -649,7 +652,7 @@
                 setTimeout(() => {
                     mensajeExito.classList.add('hidden');
                 }, 5000);
-            }, 1500);
+            });
         });
     </script>
 
