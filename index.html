@@ -601,7 +601,7 @@
         });
         
         reservaForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            e.preventDefault();  // ✅ Esto previene el action del form
             
             // Validación adicional antes de enviar
             const fechaSeleccionada = new Date(fechaInput.value);
@@ -627,20 +627,23 @@
             btnSubmit.disabled = true;
             btnSubmit.textContent = 'Enviando...';
             
-            // Aquí puedes agregar la lógica para enviar a n8n
-            // const formData = new FormData(reservaForm);
-            // fetch('https://tuwebhook.n8n.cloud/webhook/barberia', {
-            //     method: 'POST',
-            //     body: formData
-            // });
-            
-            // Simular envío (quitar setTimeout cuando uses fetch real)
-            setTimeout(() => {
-                // Mostrar mensaje de éxito
+            // Aquí deberías tener el fetch a n8n
+            const formData = new FormData(reservaForm);
+            fetch('https://primary-production-5b04.up.railway.app/webhook-test/webhook-barbershop', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Enviado a n8n:', data);
                 mensajeExito.classList.remove('hidden');
                 reservaForm.reset();
                 configurarFechas(); // Re-aplicar restricciones después del reset
-                
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+            })
+            .finally(() => {
                 // Rehabilitar botón
                 btnSubmit.disabled = false;
                 btnSubmit.textContent = 'Confirmar Reserva';
@@ -649,7 +652,7 @@
                 setTimeout(() => {
                     mensajeExito.classList.add('hidden');
                 }, 5000);
-            }, 1500);
+            });
         });
     </script>
 
