@@ -336,7 +336,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label for="hora" class="block text-gold-primary mb-2 font-medium">Hora Preferida</label>
-                            <input type="time" id="hora" name="hora" min="10:00" max="20:00" required class="w-full px-4 py-3 bg-black border border-gold-primary text-gray-200 focus:outline-none focus:ring-2 focus:ring-gold-light transition-all duration-300">
+                            <select id="hora" name="hora" required class="w-full px-4 py-3 bg-black border border-gold-primary text-gray-200 focus:outline-none focus:ring-2 focus:ring-gold-light transition-all duration-300">
+                                <option value="">Selecciona una hora</option>
+                                <!-- Las opciones se generan dinámicamente con JS -->
+                            </select>
                         </div>
                         <div>
                             <label for="servicio" class="block text-gold-primary mb-2 font-medium">Servicio</label>
@@ -565,7 +568,42 @@
         const reservaForm = document.getElementById('reservaForm');
         const mensajeExito = document.getElementById('mensaje-exito');
         const fechaInput = document.getElementById('fecha');
+        const horaSelect = document.getElementById('hora');
         const btnSubmit = reservaForm.querySelector('button[type="submit"]');
+        
+        // Configuración de horarios de la barbería
+        const HORARIOS_CONFIG = {
+            intervaloMinutos: 30,
+            lunesViernes: { inicio: 10, fin: 20 },
+            sabado: { inicio: 10, fin: 18 },
+            domingo: 'cerrado'
+        };
+        
+        // Función para generar opciones de horario dinámicamente
+        function generarOpcionesHorario() {
+            // Limpiar opciones existentes (excepto la primera)
+            horaSelect.innerHTML = '<option value="">Selecciona una hora</option>';
+            
+            const { intervaloMinutos, lunesViernes } = HORARIOS_CONFIG;
+            const horaInicio = lunesViernes.inicio;
+            const horaFin = lunesViernes.fin;
+            
+            for (let hora = horaInicio; hora <= horaFin; hora++) {
+                for (let minuto = 0; minuto < 60; minuto += intervaloMinutos) {
+                    // No agregar horarios después del cierre
+                    if (hora === horaFin && minuto > 0) break;
+                    
+                    const horaStr = String(hora).padStart(2, '0');
+                    const minutoStr = String(minuto).padStart(2, '0');
+                    const valor = `${horaStr}:${minutoStr}`;
+                    
+                    const option = document.createElement('option');
+                    option.value = valor;
+                    option.textContent = valor;
+                    horaSelect.appendChild(option);
+                }
+            }
+        }
         
         // Función para configurar restricciones de fecha
         function configurarFechas() {
@@ -576,12 +614,66 @@
             fechaInput.max = maxFecha.toISOString().split('T')[0];
         }
         
+        // Inicializar horarios al cargar
+        generarOpcionesHorario();
+        
         // Configurar fechas al cargar
         configurarFechas();
         
+        // Función para actualizar horarios disponibles según el día
+        function actualizarHorariosDisponibles() {
+            const fechaValue = fechaInput.value;
+            
+            if (!fechaValue) {
+                // Habilitar todas las opciones si no hay fecha
+                Array.from(horaSelect.options).forEach(option => {
+                    if (option.value) option.disabled = false;
+                });
+                return;
+            }
+            
+            const fechaSeleccionada = new Date(fechaValue + 'T00:00:00');
+            const diaSemana = fechaSeleccionada.getDay(); // 0=Domingo, 6=Sábado
+            
+            // Domingo cerrado
+            if (diaSemana === 0) {
+                fechaInput.setCustomValidity('❌ Los domingos estamos cerrados');
+                fechaInput.reportValidity();
+                fechaInput.value = '';
+                return;
+            }
+            
+            // Determinar horario según el día
+            const horario = diaSemana === 6 
+                ? HORARIOS_CONFIG.sabado 
+                : HORARIOS_CONFIG.lunesViernes;
+            
+            Array.from(horaSelect.options).forEach(option => {
+                if (!option.value) return; // Skip opción vacía
+                
+                const [hora, minuto] = option.value.split(':').map(Number);
+                
+                // Deshabilitar si está fuera del horario de ese día
+                option.disabled = (
+                    hora < horario.inicio || 
+                    hora > horario.fin ||
+                    (hora === horario.fin && minuto > 0)
+                );
+            });
+            
+            // Si la hora seleccionada quedó deshabilitada, limpiarla
+            const horaSeleccionada = horaSelect.value;
+            if (horaSeleccionada) {
+                const optionSeleccionada = Array.from(horaSelect.options).find(o => o.value === horaSeleccionada);
+                if (optionSeleccionada && optionSeleccionada.disabled) {
+                    horaSelect.value = '';
+                }
+            }
+        }
+        
         // Validar fecha en tiempo real
         fechaInput.addEventListener('change', function() {
-            const fechaSeleccionada = new Date(this.value);
+            const fechaSeleccionada = new Date(this.value + 'T00:00:00');
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
             
@@ -597,11 +689,12 @@
                 this.reportValidity();
             } else {
                 this.setCustomValidity('');
+                actualizarHorariosDisponibles(); // Actualizar horarios disponibles
             }
         });
         
         reservaForm.addEventListener('submit', (e) => {
-            e.preventDefault();
+            e.preventDefault();  // ✅ Esto previene el action del form
             
             // Validación adicional antes de enviar
             const fechaSeleccionada = new Date(fechaInput.value);
@@ -627,20 +720,23 @@
             btnSubmit.disabled = true;
             btnSubmit.textContent = 'Enviando...';
             
-            // Aquí puedes agregar la lógica para enviar a n8n
-            // const formData = new FormData(reservaForm);
-            // fetch('https://tuwebhook.n8n.cloud/webhook/barberia', {
-            //     method: 'POST',
-            //     body: formData
-            // });
-            
-            // Simular envío (quitar setTimeout cuando uses fetch real)
-            setTimeout(() => {
-                // Mostrar mensaje de éxito
+            // Aquí deberías tener el fetch a n8n
+            const formData = new FormData(reservaForm);
+            fetch('https://primary-production-5b04.up.railway.app/webhook-test/webhook-barbershop', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Enviado a n8n:', data);
                 mensajeExito.classList.remove('hidden');
                 reservaForm.reset();
                 configurarFechas(); // Re-aplicar restricciones después del reset
-                
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+            })
+            .finally(() => {
                 // Rehabilitar botón
                 btnSubmit.disabled = false;
                 btnSubmit.textContent = 'Confirmar Reserva';
@@ -649,7 +745,7 @@
                 setTimeout(() => {
                     mensajeExito.classList.add('hidden');
                 }, 5000);
-            }, 1500);
+            });
         });
     </script>
 
